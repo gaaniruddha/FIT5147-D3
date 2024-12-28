@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>Data Visualisation using D3</title>
+        <style>
+            body { background: url(https://encrypted-tbn0.gstatic.com/images?q=tbn%3AANd9GcQGA4JhGb7_BEs8fe_ThVL65-u39O8gun8w8iZrKlQXc0SEbmvZ&usqp=CAU); background-repeat: no-repeat; background-size: 100% 100%}
+        </style>
+    </head>
+    <script src = "https://d3js.org/d3.v4.min.js"></script>
+    <style>
+        
+        div.tooltip { 
+          background: white; 
+          border: 2px;      
+          width: 200px;                  
+          height: 100px;    
+          position: absolute;           
+          text-align: left;                                     
+          font: 15px arial;                        
+          pointer-events: none;         
+        }
+    </style>
+    <body>
+        
+        <svg style = 'background-color: white'></svg>
+        
+        <h1> <u>Visualisation of Connections and Trading at different sites</u> </h1>
+        <h2> Following Tasks have been performed:  </h2>
+        <p> <u> Task 1 </u> : Reading in the data using D3. </p>
+        <p> <u> Task 2 </u> : Drawing the locations as circles. </p>
+        <p> <u> Task 3 </u> : Drawing the trading as lines between the locations. </p>
+        <p> <u> Task 4 </u> :  </p>
+        <ul>
+            <li> Highlghting the circle and all lines connected to it. </li>
+            <li> Tooltip showing the total amount of trading  at that location and the number of connected locations.</li>
+        </ul>
+        <p> <u>Task 5 </u> : Ensuring that circles are rendered on top of lines.</p>
+        
+        <script>
+            
+            // Setting the dimensions of the workspace 
+            var width = 950;
+            var height = 550;
+            
+            // Initialising the canvas for our visualisation 
+            var svgCanvas = d3.select("svg")
+                .attr( "width", width )
+                .attr( "height", height )
+                .attr( "class", "svgCanvas")
+                .style("border", "3px solid");
+            
+            // Task 1: Reading in the data using D3
+            d3.json("data.json", function(site_data){
+                
+                // Storing all the "nodes" information in n
+                const n = site_data["nodes"].map(d => Object.create(d));
+                
+                // Storing all the "links" information in l
+                const l = site_data["links"].map(d => Object.create(d));
+                
+                // For storing all the connections of a given site 
+                let s_connection = {"site01":0, "site02":0, "site03":0, "site04":0, "site05":0, "site06":0, "site07":0, "site08":0, "site09":0, "site10":0, "site11":0}
+                
+                // For storing the total trading amounts of a given site 
+                let s_amount = {"site01":0, "site02":0, "site03":0, "site04":0, "site05":0, "site06":0, "site07":0, "site08":0, "site09":0, "site10":0, "site11":0}
+                
+                // Calculating the total number of connections of a given site by iterating through the links  
+                for (i = 0; i < l.length; i++) {                          
+                    s_connection[l[i].node01] = s_connection[l[i].node01] + 1
+                    s_connection[l[i].node02] = s_connection[l[i].node02] + 1
+                }
+                
+                // Calculating the total trading amount at a given site by iterating through the links 
+                for (i = 0; i < l.length; i++) {                           
+                    s_amount[l[i].node01] = s_amount[l[i].node01] + l[i].amount
+                    s_amount[l[i].node02] = s_amount[l[i].node02] + l[i].amount
+                }
+                
+                // Task 5 : In order to ensure that Circles are rendered on top of the lines, I have drawn the Lines first and then the Circles
+                // Task 3 : Draw the trading as lines between the locations marked as Circles 
+                svgCanvas.selectAll("line")
+                    // Getting the data from the "links" stored as l
+                    .data(l)
+                    .enter().append("line")
+                    .attr("class", info => info.node01 + "-" + info.node02)
+                
+                    // Getting the x coordinate of the first node as x1
+                    .attr("x1", function(info){
+                        for (j = 0; j < n.length; j++) {                             
+                            if(n[j].id == info.node01){
+                                return n[j].x
+                            }                            
+                        } 
+                    })
+                    // Getting the x coordinate of the second node as x2
+                    .attr("x2", function(info){
+                        for (j = 0; j < n.length; j++) { 
+                            
+                                if(n[j].id == info.node02){
+                                    return n[j].x
+                                }
+                                
+                            }
+                    })
+                    // Getting the y coordinate of the first node as y1
+                    .attr("y1", function(info){
+                        for (j = 0; j < n.length; j++) { 
+                            
+                                if(n[j].id == info.node01){
+                                    return n[j].y
+                                }
+                                
+                            }
+                    })
+                    
+                    // Getting the y coordinate of the second node as y2
+                    .attr("y2", function(info){
+                        for (j = 0; j < n.length; j++) { 
+                            
+                                if(n[j].id == info.node02){
+                                    return n[j].y
+                                }
+                                
+                            }
+                    })
+                    .style("stroke","grey")
+                    // Scaling down the line width for better user readability 
+                    .style("stroke-width", d => d.amount/90);
+                
+                // Task 2 : Drawing the locations as circles 
+                svgCanvas.selectAll("circle")
+                    // Data is taken from the nodes stored as n 
+                    .data(n).enter().append("circle")
+                
+                    // Getting the Site ID
+                    .attr("site_id", info => info.id)
+                
+                    // Getting the pixel coordinates of the centre of the circle 
+                    .attr("cx", info => info.x)
+                    .attr("cy", info => info.y)
+                
+                    // Ensuring that the Circle Radius is proportional to the total trading amount 
+                    .attr("r", function(info){
+                    
+                        // Calculating the total trading amount 
+                        var total_amount = 0;
+                    
+                        for (i = 0; i < l.length; i++) {  
+                            
+                            if(l[i].node01 == info.id || l[i].node02 == info.id){
+                                total_amount = total_amount + l[i].amount
+                            }                            
+                        }
+                        // Reducing the size for getting a relative value
+                        // Scaling it by a factor of 80 for better presentability 
+                        return total_amount/80
+                    })
+                    
+                    // Making the Circles Steel Blue in Color 
+                    .attr( "fill", d3.color("steelblue") )
+                
+                    // Task 4, Part 1 : While hovering on a circle 
+                    .on("mouseover",function(){
+                        
+                        // Selecting a particular circle for viewing the details 
+                        let site_id = d3.select(this).attr("site_id")
+                        // Highlighting the selected circle 
+                        // Assigning a different color to the selected circle
+                        d3.select(this)
+                            .attr("opacity", 1)
+                            .attr( "fill", d3.color("lightgreen") );
+                        
+                        // Making other circles and lines transparent 
+                        svgCanvas.selectAll("line")
+                            .attr("opacity", 0.2);
+                    
+                        // Highlighting the lines connected to the circle 
+                        svgCanvas.selectAll("line")
+                            .filter(function(d){
+                                return d.node02 == site_id || d.node01 == site_id
+                            })
+                    
+                            .attr("opacity", 1);
+                    
+                        div.transition()        
+                            .duration(200)      
+                            .style("opacity", .8);  
+                            
+                        // Task 4, Part 2 : While hovering on the circle 
+                        // Displaying Total amount of trading and number of connected locations 
+                        div .html( "<p> <u> Site ID </u>  = " + site_id + "</p> <p> <u> Total Connections </u> = " + String(s_connection[site_id]) + "</p> <p> <u> Total Trading </u> = " + s_amount[site_id] + "</p>" )  
+                            // Positioning the Tool-Tip 
+                            .style("left", (d3.event.pageX) + "px")     
+                            .style("top", (d3.event.pageY - 28) + "px"); 
+                    })
+            
+                    
+                    // When mouse is taken off from the circle of a given site 
+                    // All sites become equally visible 
+                    // All Circles get the same colour 
+                    .on("mouseout",function(){
+                        svgCanvas.selectAll("circle")
+                            .attr("opacity",1)
+                            .attr( "fill", d3.color("steelblue") );
+                        svgCanvas.selectAll("line")
+                            .attr("opacity",1)
+                            .attr( "fill", d3.color("grey") );
+                        div.transition()        
+                            .duration(500)      
+                            .style("opacity", 0);
+                    });
+                
+                var div = d3.select("body").append("div")   
+                    .attr("class", "tooltip")               
+                    .style("opacity", 1);
+                
+            });
+        </script> 
+    </body>
+</html>
